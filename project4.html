@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>متجر الإبداع | Tech Store</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #a855f7;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --card: #ffffff;
+            --success: #22c55e;
+        }
+
+        .dark-mode {
+            --bg: #0f172a;
+            --text: #f1f5f9;
+            --card: #1e293b;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            transition: all 0.3s ease;
+        }
+
+        header {
+            background: rgba(99, 102, 241, 0.9);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 1rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        /* شريط التوصيل المجاني */
+        .shipping-text { text-align: center; font-size: 0.8rem; padding: 8px; background: #dcfce7; color: #166534; font-weight: bold; }
+        .free-shipping-banner { background: #e2e8f0; height: 8px; width: 100%; }
+        #shipping-progress { background: var(--success); height: 100%; width: 0%; transition: 0.5s ease-in-out; }
+
+        .container { padding: 2rem 5%; }
+        .products-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; }
+
+        .product-card {
+            background: var(--card);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            text-align: center;
+            transition: 0.3s;
+        }
+        .product-card:hover { transform: translateY(-5px); }
+        .product-card img { width: 100%; height: 180px; object-fit: contain; border-radius: 15px; }
+
+        .btn-add { background: var(--primary); color: white; border: none; padding: 12px; width: 100%; border-radius: 12px; cursor: pointer; margin-top: 1rem; font-weight: bold; }
+
+        /* نافذة الفاتورة (Invoice Modal) */
+        #invoice-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        .invoice-box {
+            background: white;
+            color: #333;
+            width: 90%;
+            max-width: 500px;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+        }
+        .invoice-header { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; text-align: center; }
+        .invoice-details { margin-bottom: 20px; font-size: 0.9rem; line-height: 1.6; }
+        .invoice-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .invoice-table th { text-align: right; border-bottom: 1px solid #eee; padding: 10px; }
+        .invoice-table td { padding: 10px; border-bottom: 1px solid #f9f9f9; }
+        .total-row { font-weight: bold; color: var(--primary); font-size: 1.2rem; }
+
+        .cart-float { position: fixed; bottom: 25px; left: 25px; background: var(--primary); color: white; padding: 15px 25px; border-radius: 50px; display: flex; align-items: center; gap: 20px; box-shadow: 0 10px 25px rgba(99,102,241,0.5); }
+        
+        @media print {
+            body * { visibility: hidden; }
+            #invoice-modal, #invoice-modal * { visibility: visible; }
+            #invoice-modal { position: absolute; left: 0; top: 0; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">🚀 متجر الإبداع الرقمي</div>
+        <button id="theme-toggle" style="background:none; border:1px solid white; color:white; border-radius:10px; padding:5px 10px; cursor:pointer;">تبديل الوضع 🌓</button>
+    </header>
+
+    <div class="shipping-text" id="shipping-msg">أضيفي منتجات بقيمة 500 ريال للحصول على شحن مجاني! 🚚</div>
+    <div class="free-shipping-banner"><div id="shipping-progress"></div></div>
+
+    <div class="container">
+        <div class="products-grid" id="grid"></div>
+    </div>
+
+    <div class="cart-float">
+        <span>السلة: <b id="cart-count">0</b> | <b id="total-price">0</b> ريال</span>
+        <button onclick="generateInvoice()" style="background:white; color:var(--primary); border:none; padding:8px 15px; border-radius:20px; font-weight:bold; cursor:pointer;">تأكيد الطلب ✨</button>
+    </div>
+
+    <!-- نافذة الفاتورة -->
+    <div id="invoice-modal">
+        <div class="invoice-box">
+            <div class="invoice-header">
+                <h2>فاتورة الشراء</h2>
+                <p>شكراً لثقتك بمتجرنا!</p>
+            </div>
+            <div class="invoice-details">
+                <p><strong>رقم الطلب:</strong> #<span id="inv-id"></span></p>
+                <p><strong>التاريخ:</strong> <span id="inv-date"></span></p>
+            </div>
+            <table class="invoice-table">
+                <thead>
+                    <tr>
+                        <th>المنتج</th>
+                        <th>السعر</th>
+                    </tr>
+                </thead>
+                <tbody id="inv-items"></tbody>
+            </table>
+            <div style="text-align: left;">
+                <p>رسوم التوصيل: <span id="inv-shipping">0</span> ريال</p>
+                <p class="total-row">الإجمالي النهائي: <span id="inv-total">0</span> ريال</p>
+            </div>
+            <div class="no-print" style="margin-top: 25px; display: flex; gap: 10px;">
+                <button onclick="window.print()" style="flex:1; padding:10px; background:#444; color:white; border-radius:8px;">طباعة PDF 🖨️</button>
+                <button onclick="closeInvoice()" style="flex:1; padding:10px; background:var(--primary); color:white; border-radius:8px;">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const products = [
+            { id: 1, name: "لابتوب للألعاب", price: 4200, img: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=200" },
+            { id: 2, name: "ساعة ذكية", price: 350, img: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200" },
+            { id: 3, name: "سماعات بلوتوث", price: 180, img: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200" },
+            { id: 4, name: "كاميرا احترافية", price: 2100, img: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=200" }
+        ];
+
+        let cart = [];
+        const SHIPPING_FEE = 35;
+
+        function render() {
+            document.getElementById('grid').innerHTML = products.map(p => `
+                <div class="product-card">
+                    <img src="${p.img}">
+                    <h3>${p.name}</h3>
+                    <p style="color:var(--primary); font-weight:bold;">${p.price} ريال</p>
+                    <button class="btn-add" onclick="addToCart(${p.id})">إضافة للسلة 🛒</button>
+                </div>
+            `).join('');
+        }
+
+        function addToCart(id) {
+            cart.push(products.find(p => p.id === id));
+            updateUI();
+        }
+
+        function updateUI() {
+            const total = cart.reduce((sum, item) => sum + item.price, 0);
+            document.getElementById('total-price').innerText = total;
+            document.getElementById('cart-count').innerText = cart.length;
+
+            const progress = Math.min((total / 500) * 100, 100);
+            document.getElementById('shipping-progress').style.width = progress + '%';
+            
+            const msg = document.getElementById('shipping-msg');
+            if (total >= 500) {
+                msg.innerText = "مبروك! التوصيل الآن مجاني 🚚";
+            } else {
+                msg.innerText = `باقي ${500 - total} ريال للتوصيل المجاني!`;
+            }
+        }
+
+        function generateInvoice() {
+            if (cart.length === 0) return alert("أضيفي منتجات أولاً!");
+
+            const total = cart.reduce((sum, item) => sum + item.price, 0);
+            const shipping = total >= 500 ? 0 : SHIPPING_FEE;
+            
+            // ملء بيانات الفاتورة
+            document.getElementById('inv-id').innerText = Math.floor(Math.random() * 90000) + 10000;
+            document.getElementById('inv-date').innerText = new Date().toLocaleDateString('ar-SA');
+            document.getElementById('inv-items').innerHTML = cart.map(item => `
+                <tr><td>${item.name}</td><td>${item.price} ريال</td></tr>
+            `).join('');
+            document.getElementById('inv-shipping').innerText = shipping;
+            document.getElementById('inv-total').innerText = total + shipping;
+
+            document.getElementById('invoice-modal').style.display = 'flex';
+        }
+
+        function closeInvoice() {
+            document.getElementById('invoice-modal').style.display = 'none';
+            cart = []; // تفريغ السلة بعد الشراء
+            updateUI();
+        }
+
+        document.getElementById('theme-toggle').onclick = () => document.body.classList.toggle('dark-mode');
+
+        render();
+    </script>
+</body>
+</html>
